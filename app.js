@@ -1,4 +1,4 @@
-const LOGO="assets/logo.png";
+const LOGO="logo.png";
 const $=s=>document.querySelector(s),esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])),nl=s=>esc(s).replace(/\n/g,"<br>");
 const fd=s=>s?s.split("-").reverse().join("/"):"",NAME="Banda Marcial do Colégio Coração Feliz";
 let DBG={},adm_=false,mail="",db,uid=null,admin=false,me="Usuário",pg=location.hash.slice(1)||"inicio",vw="lista",sel=null,cm=new Date(),at="conteúdo";cm.setDate(1);
