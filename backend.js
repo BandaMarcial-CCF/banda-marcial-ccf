@@ -25,7 +25,7 @@ const db={doc:dref,collection:p=>({
 const email=()=>(session?.user?.email||"").toLowerCase();
 const user={id:async()=>session?.user?.id||null,
  me:async()=>({name:profile.name||session?.user?.user_metadata?.full_name||email().split("@")[0]||"Usuário"}),
- canEdit:()=>role==="dono"||role==="maestro",isOwner:()=>false,role:async()=>role,profile:async()=>profile,
+ canEdit:()=>role==="dono"||role==="maestro",isOwner:()=>email()===OWNER,role:async()=>role,profile:async()=>profile,
  saveQuiz:async({name,member,instrument})=>{const patch={name,answered:true,instrument:member?instrument:null};if(member&&role==="visitante")patch.role="integrante";
   const{data,error}=await sb.from("roles").update(patch).eq("uid",session.user.id).select();if(error)throw error;if(!data||!data.length)throw Error("Não foi possível salvar suas respostas");
   if(patch.role)role="integrante";profile={...profile,...patch,role}}};
@@ -34,6 +34,7 @@ const assets={upload:async f=>{const ext=(f.name.split(".").pop()||"bin").toLowe
  return{url:sb.storage.from("galeria").getPublicUrl(name).data.publicUrl}}};
 const downloads={save:async({filename,data})=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([data]));a.download=filename;a.click()}};
 const rolesApi={list:async()=>{const{data,error}=await sb.from("roles").select("uid,email,name,role,created_at,instrument,answered").order("created_at",{ascending:false});if(error)throw error;return data},
+ remove:async uid=>{const{error}=await sb.rpc("admin_delete_user",{target:uid});if(error)throw error},
  set:async(uid,rl)=>{const{data,error}=await sb.from("roles").update({role:rl}).eq("uid",uid).select();if(error)throw error;if(!data.length)throw Error("Sem permissão para alterar esta função");
   if(email()===OWNER){if(rl==="dono"||rl==="maestro"){const r=await sb.from("staff").upsert({uid,role:rl});if(r.error)throw r.error}else{await sb.from("staff").delete().eq("uid",uid)}}}};
 const mkFiles=B=>({upload:async(f,name,type)=>{const{error}=await sb.storage.from(B).upload(name,f,{contentType:type,upsert:false});if(error)throw error;return name},
