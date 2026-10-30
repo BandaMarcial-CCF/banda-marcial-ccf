@@ -32,7 +32,11 @@ const downloads={save:async({filename,data})=>{const a=document.createElement("a
 const rolesApi={list:async()=>{const{data,error}=await sb.from("roles").select("uid,email,name,role,created_at").order("created_at",{ascending:false});if(error)throw error;return data},
  set:async(uid,rl)=>{const{data,error}=await sb.from("roles").update({role:rl}).eq("uid",uid).select();if(error)throw error;if(!data.length)throw Error("Sem permissão para alterar esta função");
   if(email()===OWNER){if(rl==="dono"||rl==="maestro"){const r=await sb.from("staff").upsert({uid,role:rl});if(r.error)throw r.error}else{await sb.from("staff").delete().eq("uid",uid)}}}};
-window.claude={use:async n=>{await ready;return({db,user:session?user:null,assets,downloads,roles:session?rolesApi:null})[n]||null}};
+const filesApi={upload:async(f,name,type)=>{const{error}=await sb.storage.from("partituras").upload(name,f,{contentType:type,upsert:false});if(error)throw error;return name},
+ url:async p=>{const{data,error}=await sb.storage.from("partituras").createSignedUrl(p,3600);if(error)throw error;return data.signedUrl},
+ urls:async ps=>{const{data,error}=await sb.storage.from("partituras").createSignedUrls(ps,3600);if(error)throw error;return data},
+ remove:async p=>{const{error}=await sb.storage.from("partituras").remove([p]);if(error)throw error}};
+window.claude={use:async n=>{await ready;return({db,user:session?user:null,assets,downloads,roles:session?rolesApi:null,files:session?filesApi:null})[n]||null}};
 window.logout=async()=>{await sb.auth.signOut();location.reload()};
 window.openLogin=()=>{const m=document.createElement("div");m.className="modal";
 m.innerHTML=`<div class="sheet"><h3>Entrar</h3><p class="m">Entre para enviar perguntas e inscrições.</p><button class="b" style="width:100%" id="lg">Entrar com Google</button><label>Ou receba um link no e-mail<input id="le" type="email" placeholder="seu@email.com"></label><button class="b2" style="width:100%" id="lm">Enviar link de acesso</button><p id="lt" class="m"></p><button class="b2" data-a="close" style="width:100%">Fechar</button></div>`;
