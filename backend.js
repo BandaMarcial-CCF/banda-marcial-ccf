@@ -3,14 +3,15 @@
 const C=window.CFG||{};
 if(!C.url||C.url.startsWith("COLE")||!window.supabase){window.claude={use:async()=>null};window.openLogin=()=>alert("Configure js/config.js com os dados do Supabase.");window.logout=()=>{};return}
 const sb=supabase.createClient(C.url,C.key,{auth:{flowType:"pkce",persistSession:true,detectSessionInUrl:true}});
-let session=null,role="visitante";
+let session=null,role="visitante",profile={};
 const OWNER=String(C.admin).toLowerCase();
-async function loadRole(){role="visitante";if(!session)return;const u=session.user,own=(u.email||"").toLowerCase()===OWNER;if(own)role="dono";
+async function loadRole(){role="visitante";profile={};if(!session)return;const u=session.user,own=(u.email||"").toLowerCase()===OWNER,meta=u.user_metadata?.full_name||"";if(own)role="dono";
  const mkOwner=async()=>{await sb.from("roles").update({role:"dono"}).eq("uid",u.id);await sb.from("staff").upsert({uid:u.id,role:"dono"})};
- try{const{data}=await sb.from("roles").select("role").eq("uid",u.id).maybeSingle();
-  if(data){if(!own)role=data.role;else if(data.role!=="dono")await mkOwner()}
-  else{await sb.from("roles").insert({uid:u.id,email:u.email,name:u.user_metadata?.full_name||"",role:"visitante"});if(own)await mkOwner()}
- }catch(e){}}
+ try{const{data}=await sb.from("roles").select("role,name,instrument,answered").eq("uid",u.id).maybeSingle();
+  if(data){profile=data;if(!own)role=data.role;else if(data.role!=="dono"){await mkOwner()}}
+  else{await sb.from("roles").insert({uid:u.id,email:u.email,name:meta,role:"visitante"});profile={name:meta,instrument:null,answered:false};if(own)await mkOwner()}
+ }catch(e){}
+ profile.role=role}
 const ready=sb.auth.getSession().then(async r=>{session=r.data.session;await loadRole()});
 sb.auth.onAuthStateChange((_e,s)=>{session=s});
 const parentOf=p=>p.replace(/\/[^/]+$/,""),rid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
@@ -23,13 +24,16 @@ const db={doc:dref,collection:p=>({
  async add(v){const id=rid();await dref(p+"/"+id).set(v);return{id}}})};
 const email=()=>(session?.user?.email||"").toLowerCase();
 const user={id:async()=>session?.user?.id||null,
- me:async()=>({name:session?.user?.user_metadata?.full_name||email().split("@")[0]||"Usuário"}),
- canEdit:()=>role==="dono"||role==="maestro",isOwner:()=>false,role:async()=>role};
+ me:async()=>({name:profile.name||session?.user?.user_metadata?.full_name||email().split("@")[0]||"Usuário"}),
+ canEdit:()=>role==="dono"||role==="maestro",isOwner:()=>false,role:async()=>role,profile:async()=>profile,
+ saveQuiz:async({name,member,instrument})=>{const patch={name,answered:true,instrument:member?instrument:null};if(member&&role==="visitante")patch.role="integrante";
+  const{data,error}=await sb.from("roles").update(patch).eq("uid",session.user.id).select();if(error)throw error;if(!data||!data.length)throw Error("Não foi possível salvar suas respostas");
+  if(patch.role)role="integrante";profile={...profile,...patch,role}}};
 const assets={upload:async f=>{const ext=(f.name.split(".").pop()||"bin").toLowerCase(),name=rid()+"."+ext;
  const{error}=await sb.storage.from("galeria").upload(name,f,{contentType:f.type});if(error)throw error;
  return{url:sb.storage.from("galeria").getPublicUrl(name).data.publicUrl}}};
 const downloads={save:async({filename,data})=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([data]));a.download=filename;a.click()}};
-const rolesApi={list:async()=>{const{data,error}=await sb.from("roles").select("uid,email,name,role,created_at").order("created_at",{ascending:false});if(error)throw error;return data},
+const rolesApi={list:async()=>{const{data,error}=await sb.from("roles").select("uid,email,name,role,created_at,instrument,answered").order("created_at",{ascending:false});if(error)throw error;return data},
  set:async(uid,rl)=>{const{data,error}=await sb.from("roles").update({role:rl}).eq("uid",uid).select();if(error)throw error;if(!data.length)throw Error("Sem permissão para alterar esta função");
   if(email()===OWNER){if(rl==="dono"||rl==="maestro"){const r=await sb.from("staff").upsert({uid,role:rl});if(r.error)throw r.error}else{await sb.from("staff").delete().eq("uid",uid)}}}};
 const mkFiles=B=>({upload:async(f,name,type)=>{const{error}=await sb.storage.from(B).upload(name,f,{contentType:type,upsert:false});if(error)throw error;return name},
