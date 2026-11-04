@@ -1,7 +1,7 @@
 const LOGO="logo.png";
 const $=s=>document.querySelector(s),esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])),nl=s=>esc(s).replace(/\n/g,"<br>");
 const fd=s=>s?s.split("-").reverse().join("/"):"",NAME="Banda Marcial do Colégio Coração Feliz";
-let ROLE="visitante",PROF={},RR=null,FL=null,AU=null,AUS={},alb=null,COV={},USERS=[],RS={},MYR={},PR={},DBG={},adm_=false,mail="",db,uid=null,admin=false,me="Usuário",pg=location.hash.slice(1)||"inicio",vw="lista",sel=null,cm=new Date(),at="conteúdo";cm.setDate(1);
+let ROLE="visitante",CODE="",PROF={},RR=null,FL=null,AU=null,AUS={},alb=null,COV={},USERS=[],RS={},MYR={},PR={},DBG={},adm_=false,mail="",db,uid=null,admin=false,me="Usuário",pg=location.hash.slice(1)||"inicio",vw="lista",sel=null,cm=new Date(),at="conteúdo";cm.setDate(1);
 let S={site:{},events:[],notices:[],faqs:[],gallery:[],repertorio:[],partituras:[],albuns:[],audios:[],logs:[]},mine=[],ans={},adm=[],q="";
 $("#spl").src=LOGO;
 function toast(t,e){const x=$("#toast");x.textContent=t;x.className=e?"e":"";x.style.display="block";setTimeout(()=>x.style.display="none",3500)}
@@ -12,7 +12,7 @@ for(const n of["events","notices","faqs","gallery","repertorio","partituras","al
 if(uid){mine=await col(`inbox/${uid}/items`);ans={};(await col(`answers/${uid}/items`)).forEach(x=>ans[x.id]=x)}
 if(admin){adm=[];S.logs=(await col("logs")).sort((a,b)=>b.ts-a.ts).slice(0,40);for(const u of await col("inbox")){const am={};(await col(`answers/${u.id}/items`)).forEach(x=>am[x.id]=x);(await col(`inbox/${u.id}/items`)).forEach(i=>adm.push({...i,uid:u.id,a:am[i.id]||{}}))}}
 PR={};if(uid&&(canR()||admin)){const ago=new Date(Date.now()-14*864e5).toISOString().slice(0,10);for(const e of S.events.filter(e=>(e.date||"")>=ago))PR[e.id]=(await col("presenca/"+e.id)).sort((a,b)=>(a.ts||0)-(b.ts||0))}
-if(admin&&RR)USERS=await RR.list();
+if(admin&&RR){USERS=await RR.list();try{CODE=await RR.getCode()}catch(e){CODE=""}}
 await signCovers();await signAudios();
 }catch(e){toast("Erro ao carregar: "+(e.message||e.code),1)}}
 const EV=[["name","Nome do evento","text",0,1],["date","Data","date",0,1],["start","Início","time"],["end","Término","time"],["place","Local","text"],["addr","Endereço","text"],["desc","Descrição","area"],["uniform","Uniforme e equipamentos","area"],["orient","Orientações","area"],["info","Informações do maestro","area"],["rep","Repertório (uma música por linha)","area"],["status","Situação","sel",["programado","realizado","cancelado"]]];
@@ -68,7 +68,7 @@ const l=al.filter(a=>((a.title||"")+(a.composer||"")+(a.cat||"")+pdfsOf(a.id).ma
 return `<h1>Partituras</h1><input id="q" placeholder="🔎 Pesquisar música ou instrumento…" value="${esc(q)}"><div class="grid" style="margin-top:12px">${l.map(a=>`<button class="card" data-a="alb|${a.id}" style="text-align:left;color:#fff;cursor:pointer;margin:0">${albCover(a.id)?`<img src="${esc(albCover(a.id))}" alt="Capa" style="width:100%;aspect-ratio:3/4;object-fit:cover;object-position:top;border-radius:8px;border:1px solid var(--ln)">`:noC}<b style="display:block;margin-top:8px">${esc(a.title)}</b><span class="m">${pdfsOf(a.id).length} partitura(s)</span></button>`).join("")}</div>${l.length?"":'<div class="card m">Nenhum álbum cadastrado.</div>'}`},
 audios(){if(!canAud())return '<h1>Áudios</h1><div class="card">Área exclusiva para integrantes da banda.</div>';
 const l=[...S.audios].filter(a=>((a.title||"")+(a.artist||"")+(a.cat||"")).toLowerCase().includes(q.toLowerCase())).sort((a,b)=>(a.title||"").localeCompare(b.title||""));
-return `<h1>Áudios</h1><input id="q" placeholder="🔎 Pesquisar música…" value="${esc(q)}">${l.map(a=>`<div class="card"><b>🎧 ${esc(a.title)}</b>${a.artist?`<p class="m">${esc(a.artist)}</p>`:""}${a.cat?`<span class="tag">${esc(a.cat)}</span>`:""}${a.notes?`<p>${nl(a.notes)}</p>`:""}<div style="margin-top:10px">${!AUS[a.file]?'<p class="m">Carregando…</p>':/\.midi?$/i.test(a.file)?`<div data-midi="${esc(AUS[a.file])}"></div>`:`<audio controls preload="none" style="width:100%" src="${esc(AUS[a.file])}"></audio>`}</div></div>`).join("")||'<div class="card m">Nenhum áudio cadastrado.</div>'}`},
+return `<h1>Áudios</h1><input id="q" placeholder="🔎 Pesquisar música…" value="${esc(q)}">${l.map(a=>`<div class="card"><b>🎧 ${esc(a.title)}</b>${a.artist?`<p class="m">${esc(a.artist)}</p>`:""}${a.cat?`<span class="tag">${esc(a.cat)}</span>`:""}${a.notes?`<p>${nl(a.notes)}</p>`:""}<div style="margin-top:10px">${!AUS[a.file]?'<p class="m">Carregando…</p>':/\.midi?$/i.test(a.file)?`<div data-midi="${esc(AUS[a.file])}"></div>`:`<audio controls playsinline preload="none" data-aud="${esc(a.file)}" style="width:100%" src="${esc(AUS[a.file])}"></audio>`}</div></div>`).join("")||'<div class="card m">Nenhum áudio cadastrado.</div>'}`},
 galeria(){const gs=[...new Set(S.gallery.map(g=>g.group||"Geral"))];return `<h1>Galeria</h1>${canUp()?'<p class="m">⚠ Fotos de menores: só com autorização dos responsáveis.</p><button class="b2" data-a="add|gallery">＋ Enviar foto/vídeo</button>':""}${gs.map(g=>`<h3>${esc(g)}</h3><div class="grid gal">${S.gallery.filter(x=>(x.group||"Geral")==g).map(media).join("")}</div>`).join("")||'<div class="card m">Ainda não há fotos ou vídeos.</div>'}`},
 contato(){const c=S.site.contact||{},B=(h,t)=>h?`<a href="${esc(h)}" target="_blank" rel="noopener"><button class="b" style="width:100%;margin:5px 0">${t}</button></a>`:"";
 return `<h1>Contato</h1>${edBtn("contact")}<div class="card">${c.addr?`<p>📍 ${esc(c.addr)}</p>`:'<p class="m">Contatos ainda não cadastrados.</p>'}${B(c.phone&&"tel:"+c.phone,"📞 "+esc(c.phone))}${B(c.wa&&"https://wa.me/"+c.wa.replace(/\D/g,""),"💬 WhatsApp")}${B(c.email&&"mailto:"+c.email,"✉ E-mail")}${B(c.ig,"Instagram")}${B(c.fb,"Facebook")}</div><button class="b" data-a="ask">Enviar pergunta pelo app</button>`},
@@ -85,7 +85,7 @@ const iConf=id=>(PR[id]||[]).some(x=>x.id==uid),canSeeP=()=>canR()||admin;
 const presBox=e=>canSeeP()?`<div style="margin-top:12px;border-top:1px solid var(--ln);padding-top:8px"><b>Presença confirmada:</b>${(PR[e.id]||[]).length?PR[e.id].map(x=>`<div>${esc((x.name||"Integrante").trim().split(" ")[0])}</div>`).join(""):'<div class="m">ninguém ainda</div>'}</div>`:"";
 const canR=()=>["integrante","utilitario"].includes(ROLE),canUp=()=>admin||ROLE=="utilitario";
 const RL={dono:"Dono",maestro:"Maestro",utilitario:"Utilitário",integrante:"Integrante",visitante:"Visitante"};
-const USR=()=>`<h2>Usuários (${USERS.length})</h2><p class="m">Dono e maestro: tudo. Utilitário: envia fotos e vídeos. Integrante: confirma presença. Visitante: perguntas e inscrição. Só o dono principal cria donos e maestros.</p>`+(USERS.map(u=>`<div class="card"><b>${esc(u.name||u.email)}</b><p class="m">${esc(u.email)}${u.instrument?" · 🎺 "+esc(u.instrument):""}</p><select onchange="H.setrole('${u.uid}',this.value)">${Object.entries(RL).map(([k,v])=>`<option value="${k}" ${u.role==k?"selected":""}>${v}</option>`).join("")}</select>${u.uid!=uid&&(u.email||"").toLowerCase()!=String((window.CFG&&CFG.admin)||"").toLowerCase()&&(DBG.owner||!["dono","maestro"].includes(u.role))?`<button class="b2" style="margin-top:10px;width:100%" data-a="deluser|${u.uid}">🗑 Remover usuário</button>`:""}</div>`).join("")||'<div class="card m">Ninguém entrou ainda.</div>');
+const USR=()=>`<div class="card hl"><b>🔑 Código da banda</b><p style="font-size:1.5rem;letter-spacing:.06em;margin:8px 0">${esc(CODE||"não definido")}</p><p class="m">Só quem tem este código vira integrante. Divulgue apenas no grupo da banda.</p><button class="b2" data-a="setcode">Alterar código</button></div><h2>Usuários (${USERS.length})</h2><p class="m">Dono e maestro: tudo. Utilitário: envia fotos e vídeos. Integrante: confirma presença. Visitante: perguntas e inscrição. Só o dono principal cria donos e maestros.</p>`+(USERS.map(u=>`<div class="card"><b>${esc(u.name||u.email)}</b><p class="m">${esc(u.email)}${u.instrument?" · 🎺 "+esc(u.instrument):""}</p><select onchange="H.setrole('${u.uid}',this.value)">${Object.entries(RL).map(([k,v])=>`<option value="${k}" ${u.role==k?"selected":""}>${v}</option>`).join("")}</select>${u.uid!=uid&&(u.email||"").toLowerCase()!=String((window.CFG&&CFG.admin)||"").toLowerCase()&&(DBG.owner||!["dono","maestro"].includes(u.role))?`<button class="b2" style="margin-top:10px;width:100%" data-a="deluser|${u.uid}">🗑 Remover usuário</button>`:""}</div>`).join("")||'<div class="card m">Ninguém entrou ainda.</div>');
 const PRES=()=>`<h2>Presenças confirmadas</h2>`+(S.events.map(e=>`<div class="card"><b>${esc(e.name)}</b> <span class="m">${fd(e.date)}</span><p>${(PR[e.id]||[]).map(x=>esc(x.name||"?")).join(", ")||"Ninguém confirmou ainda."}</p></div>`).join("")||'<div class="card m">Nenhuma apresentação.</div>');
 const lst=(c,t,f)=>`<h3>${t}</h3><button class="b" data-a="add|${c}">＋ Novo</button>${S[c].map(x=>`<div class="card row sp"><span>${esc(f(x))}</span><span class="row"><button class="b2" data-a="edit|${c}|${x.id}">Editar</button>${c=="events"?`<button class="b2" data-a="cancel|${x.id}">Cancelar</button>`:""}<button class="b2" data-a="del|${c}|${x.id}">Excluir</button></span></div>`).join("")||'<p class="m">Nada cadastrado.</p>'}`;
 const CONT=()=>`<h2>Páginas do aplicativo</h2>${Object.entries(SEC).map(([k,v])=>`<div class="card"><h3>${v[0]}</h3><p class="m">${v[1].map(x=>x[1]).join(" · ")}</p><button class="b" data-a="sec|${k}">✎ Editar ${v[0]}</button></div>`).join("")}`+lst("events","Apresentações",x=>fd(x.date)+" · "+x.name+" ("+(x.status||"programado")+")")+lst("notices","Avisos",x=>x.title)+lst("faqs","Perguntas frequentes",x=>x.q)+'<p class="m">⚠ Fotos de menores: só publique com autorização dos responsáveis.</p>'+lst("gallery","Galeria",x=>x.title||x.group||"Arquivo");
@@ -94,7 +94,7 @@ const media=g=>`<div>${g.kind=="video"?`<video src="${esc(g.file)}" controls></v
 const NAV=[["agenda","📅","Agenda"],["entrar","🥁","Entrar"],["inicio","","Início"],["duvidas","❓","Dúvidas"],["mais","☰","Mais"]];
 function render(){const v=$("#v");v.innerHTML=(db?"":'<div class="card hl m">⚠ Sem conexão com sua conta. Abra este link no navegador (Chrome ou Safari), já conectado ao claude.ai, para ver e editar o conteúdo.</div>')+(P[pg]||P.inicio)();
 $("#nav").innerHTML=[...NAV,...(admin?[["admin","🛡","Admin"]]:[])].map(([k,i,t])=>k=="inicio"?`<button class="mid ${pg==k?"on":""}" data-a="go|inicio"><img src="${LOGO}" alt="Início"><b>Início</b></button>`:`<button class="${pg==k?"on":""}" data-a="go|${k}"><span>${i}</span>${t}</button>`).join("");
-if(pg=="audios")document.querySelectorAll("[data-midi]").forEach(el=>mkMidi(el,el.dataset.midi));const qi=$("#q");if(qi)qi.oninput=e=>{q=e.target.value;const p=e.target.selectionStart;render();$("#q").focus();$("#q").setSelectionRange(p,p)}}
+if(pg=="audios"){document.querySelectorAll("[data-midi]").forEach(el=>(IOS?mkSynth:mkMidi)(el,el.dataset.midi));document.querySelectorAll("audio[data-aud]").forEach(attachFb)}const qi=$("#q");if(qi)qi.oninput=e=>{q=e.target.value;const p=e.target.selectionStart;render();$("#q").focus();$("#q").setSelectionRange(p,p)}}
 const canScore=()=>admin||ROLE=="integrante",canAud=()=>admin||["integrante","utilitario"].includes(ROLE);
 async function signCovers(){COV={};if(!FL||!canScore())return;const ps=S.partituras.map(x=>x.cover).filter(Boolean);if(!ps.length)return;try{(await FL.urls(ps)).forEach(r=>{if(r.signedUrl)COV[r.path]=r.signedUrl})}catch(e){}}
 async function pdfjs(){if(window.pdfjsLib)return pdfjsLib;await new Promise((ok,no)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";s.onload=ok;s.onerror=()=>no(Error("Não foi possível carregar o leitor de PDF"));document.head.append(s)});pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";return pdfjsLib}
@@ -103,7 +103,7 @@ function midiLib(){if(window.customElements&&customElements.get("midi-player"))r
 async function addAud(v){const L=(v.files||[]).filter(f=>f&&f.size>0);if(!L.length)throw Error("Escolha ao menos um arquivo de áudio");let ok=0,er=[];
 for(const f of L){try{const ext=((f.name.split(".").pop()||"").toLowerCase()),isA=(f.type||"").startsWith("audio/")||["mp3","m4a","wav","ogg","aac","flac","opus","mid","midi"].includes(ext);if(!isA)throw Error("não é áudio");if(f.size>45*1024*1024)throw Error("maior que 45 MB");
 const id=Date.now().toString(36)+Math.random().toString(36).slice(2,5),file=id+"."+(ext||"mp3");
-await AU.upload(f,file,/^midi?$/.test(ext)?"audio/midi":(f.type||"audio/mpeg"));
+await AU.upload(f,file,MIME[ext]||f.type||"audio/mpeg");
 await db.doc("audios/"+id).set({title:(L.length==1&&v.name)?v.name:f.name.replace(/\.[^.]+$/,"").replace(/_/g," ").trim(),artist:v.artist,cat:v.cat,notes:v.notes,file,ts:Date.now()});ok++}catch(e){er.push(f.name+": "+(e.message||e.code))}}
 if(ok)await log("Adicionou "+ok+" áudio(s)");await H.reload();if(er.length)throw Error(er.join("; "))}
 const SAUD=()=>`<h2>Áudios</h2><p class="m">Arquivos de áudio das músicas. Só integrantes, maestro e dono ouvem.</p>${AU?"":'<div class="card hl">⚠ O backend.js no GitHub está desatualizado. Envie a versão nova para poder enviar áudios.</div>'}<button class="b" data-a="addaud">＋ Adicionar áudios</button>`+([...S.audios].sort((a,b)=>(a.title||"").localeCompare(b.title||"")).map(a=>`<div class="card row sp"><span>🎧 ${esc(a.title)}</span><span class="row"><button class="b2" data-a="edit|audios|${a.id}">Editar</button><button class="b2" data-a="delaud|${a.id}">Excluir</button></span></div>`).join("")||'<div class="card m">Nenhum áudio ainda.</div>');
@@ -127,17 +127,22 @@ document.head.append(Object.assign(document.createElement("style"),{textContent:
 .qzc h2{font-size:1.6rem;text-align:center;margin:10px 0 18px}.qzd{display:flex;gap:8px;justify-content:center;margin-bottom:8px}.qzd i{width:34px;height:5px;border-radius:9px;background:#2d2d33}.qzd i.on{background:#e11d2e}
 .qzc .grid button{min-height:58px;font-size:17px}
 @keyframes qin{from{opacity:0;transform:translateX(44px)}}@keyframes qout{to{opacity:0;transform:translateX(-44px)}}`}));
-function quiz(u,p0){return new Promise(done=>{const A={name:(p0.name||"").trim(),member:null,inst:null},INST=["Trompete","Flugel","Trombone","Tuba","Bombardino","Percussão"];let step=1,fail=false;const root=$("#v");$("#nav").innerHTML="";
+function quiz(u,p0){return new Promise(done=>{const A={name:(p0.name||"").trim(),member:null,code:"",inst:null},INST=["Trompete","Flugel","Trombone","Tuba","Bombardino","Percussão"];let step=1,fail=false;const root=$("#v");$("#nav").innerHTML="";
 const go=n=>{const c=$("#qc");if(c)c.classList.add("out");setTimeout(()=>{step=n;draw()},c?250:0)};
 const finish=async()=>{$("#qc").innerHTML='<p class="m" style="text-align:center;padding:30px 0">Salvando…</p>';
- try{await u.saveQuiz({name:A.name,member:A.member,instrument:A.inst});toast("Bem-vindo(a), "+A.name.split(" ")[0]+"!");done()}catch(e){fail=true;toast("Erro: "+(e.message||e.code),1);step=A.member?3:2;draw()}};
+ try{await u.saveQuiz({name:A.name,member:A.member,instrument:A.inst,code:A.code});toast("Bem-vindo(a), "+A.name.split(" ")[0]+"!");done()}catch(e){fail=true;const msg=e.message||e.code||"";toast("Erro: "+msg,1);step=A.member?(/c[óo]digo/i.test(msg)?3:4):2;draw()}};
 const draw=()=>{const c=step==1?`<h2>Qual é o seu nome?</h2><input id="qn" maxlength="60" placeholder="Digite seu nome" value="${esc(A.name)}" autocomplete="name"><button class="b" id="qgo" style="width:100%;margin-top:14px">Continuar</button>`
  :step==2?`<h2>Você já participa da banda?</h2><div class="grid"><button class="b" data-q="sim">Sim</button><button class="b2" data-q="nao">Não</button></div>`
+ :step==3?`<h2>Código da banda</h2><p class="m" style="text-align:center;margin:-6px 0 12px">Digite o código divulgado no grupo da banda.</p><input id="qk" placeholder="Código" autocomplete="off" autocapitalize="characters" spellcheck="false"><button class="b" id="qgo" style="width:100%;margin-top:14px">Continuar</button><button class="b2" id="qno" style="width:100%;margin-top:10px">Não tenho o código</button>`
  :`<h2>Qual instrumento você toca?</h2><div class="grid">${INST.map(i=>`<button class="b2" data-i="${i}">${i}</button>`).join("")}</div>`;
- root.innerHTML=`<div class="qz"><img class="logo" src="${LOGO}" style="width:min(58%,210px);margin-bottom:18px" alt="Logo"><div class="qzc" id="qc"><div class="qzd">${[1,2,3].map(i=>`<i class="${i<=step?"on":""}"></i>`).join("")}</div>${c}${step>1?'<button class="b2" id="qb" style="margin-top:14px;width:100%">Voltar</button>':""}${fail?'<button class="b2" id="qs" style="margin-top:10px;width:100%">Entrar sem responder</button>':""}</div></div>`;
+ root.innerHTML=`<div class="qz"><img class="logo" src="${LOGO}" style="width:min(58%,210px);margin-bottom:18px" alt="Logo"><div class="qzc" id="qc"><div class="qzd">${[1,2,3,4].map(i=>`<i class="${i<=step?"on":""}"></i>`).join("")}</div>${c}${step>1?'<button class="b2" id="qb" style="margin-top:14px;width:100%">Voltar</button>':""}${fail?'<button class="b2" id="qs" style="margin-top:10px;width:100%">Entrar sem responder</button>':""}</div></div>`;
  if(step==1){const n=()=>{const v=$("#qn").value.trim();if(v.length<2)return toast("Digite seu nome",1);A.name=v;go(2)};$("#qgo").onclick=n;$("#qn").onkeydown=e=>{if(e.key==="Enter")n()};$("#qn").focus()}
- if(step==2)root.querySelectorAll("[data-q]").forEach(x=>x.onclick=()=>{A.member=x.dataset.q=="sim";if(A.member)go(3);else{A.inst=null;$("#qc").classList.add("out");setTimeout(finish,250)}});
- if(step==3)root.querySelectorAll("[data-i]").forEach(x=>x.onclick=()=>{A.inst=x.dataset.i;$("#qc").classList.add("out");setTimeout(finish,250)});
+ if(step==2)root.querySelectorAll("[data-q]").forEach(x=>x.onclick=()=>{A.member=x.dataset.q=="sim";if(A.member)go(3);else{A.inst=null;A.code="";$("#qc").classList.add("out");setTimeout(finish,250)}});
+ if(step==3){const n=async()=>{const v=$("#qk").value.trim();if(v.length<4)return toast("Digite o código da banda",1);const g=$("#qgo");g.disabled=true;g.textContent="Verificando…";
+  try{const ok=await u.checkCode(v);if(!ok){g.disabled=false;g.textContent="Continuar";$("#qk").value="";return toast("Código incorreto",1)}A.code=v;go(4)}
+  catch(e){g.disabled=false;g.textContent="Continuar";toast(/tentativas/i.test(e.message||"")?"Muitas tentativas. Aguarde alguns minutos.":"Erro: "+(e.message||e.code),1)}};
+  $("#qgo").onclick=n;$("#qk").onkeydown=e=>{if(e.key==="Enter")n()};$("#qk").focus();$("#qno").onclick=()=>{A.member=false;A.inst=null;A.code="";$("#qc").classList.add("out");setTimeout(finish,250)}}
+ if(step==4)root.querySelectorAll("[data-i]").forEach(x=>x.onclick=()=>{A.inst=x.dataset.i;$("#qc").classList.add("out");setTimeout(finish,250)});
  const bk=$("#qb");if(bk)bk.onclick=()=>go(step-1);const sk=$("#qs");if(sk)sk.onclick=()=>done()};
 draw()})}
 function mkMidi(box,url){box.innerHTML=`<div class="ap"><button class="apb" type="button">▶</button><span class="apt">0:00</span><input class="apr" type="range" min="0" max="1000" value="0" disabled><a class="apd" href="${esc(url)}" download title="Baixar MIDI">⬇</a></div>`;
@@ -150,6 +155,86 @@ b.onclick=async()=>{if(!p){b.textContent="…";t.textContent="Carregando…";try
  if(p.playing){pos=p.currentTime;p.stop();return}
  b.textContent="…";try{await p.start();if(pos){p.currentTime=pos;pos=0}}catch(e){b.textContent="▶";toast("Erro ao tocar o MIDI",1)}}}
 async function signAudios(){AUS={};if(!AU||!canAud())return;const ps=S.audios.map(a=>a.file).filter(Boolean);if(!ps.length)return;try{(await AU.urls(ps)).forEach(r=>{if(r.signedUrl)AUS[r.path]=r.signedUrl})}catch(e){}}
+document.head.append(Object.assign(document.createElement("style"),{textContent:`
+#pdfv{position:fixed;inset:0;z-index:60;background:radial-gradient(circle at 50% -10%,#5a0a14 0,#0a0a0a 62%);display:flex;flex-direction:column;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.pvh{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:calc(10px + env(safe-area-inset-top,0px)) 14px 10px;border-bottom:1px solid #7a0a14;background:#000b}
+.pvh b{font-family:Oswald,Impact,sans-serif;text-transform:uppercase;letter-spacing:.04em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pvh .b,.pvh .b2{padding:8px 14px;min-height:40px}
+.pvs{flex:1;overflow:auto;padding:14px 8px calc(40px + env(safe-area-inset-bottom,0px));text-align:center;-webkit-overflow-scrolling:touch}
+.pvw{display:flex;flex-direction:column;align-items:center;width:max-content;min-width:100%}
+.pvw canvas{display:block;margin:0 auto 16px;border-radius:6px;background:#fff;max-width:none;box-shadow:0 0 0 2px #e11d2e66,0 0 28px #e11d2e66;pointer-events:none}
+#pvblk{position:absolute;inset:0;background:#000;color:#777;display:none;align-items:center;justify-content:center;z-index:3;font-size:18px}
+@media print{body>*{display:none!important}}`}));
+const IOS=typeof navigator!=="undefined"&&(/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1));
+const MIME={mp3:"audio/mpeg",m4a:"audio/mp4",mp4:"audio/mp4",aac:"audio/aac",wav:"audio/wav",ogg:"audio/ogg",oga:"audio/ogg",opus:"audio/ogg",flac:"audio/flac",mid:"audio/midi",midi:"audio/midi"};
+function attachFb(a){a.addEventListener("error",async()=>{if(a.dataset.fb)return;a.dataset.fb=1;const ext=(a.dataset.aud.split(".").pop()||"").toLowerCase();try{const r=await fetch(a.src);if(!r.ok)throw Error("http");const ab=await r.arrayBuffer();a.src=URL.createObjectURL(new Blob([ab],{type:MIME[ext]||"audio/mpeg"}));a.load();a.play().catch(()=>{})}catch(e){toast("Este aparelho não conseguiu tocar o áudio. Peça ao maestro para enviar em MP3.",1)}})}
+function unlockIOS(){try{if(navigator.audioSession)navigator.audioSession.type="playback"}catch(e){}
+if(window.__sil){window.__sil.play().catch(()=>{});return}
+const n=4410,bf=new ArrayBuffer(44+n*2),v=new DataView(bf),w=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i))};
+w(0,"RIFF");v.setUint32(4,36+n*2,true);w(8,"WAVEfmt ");v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,44100,true);v.setUint32(28,88200,true);v.setUint16(32,2,true);v.setUint16(34,16,true);w(36,"data");v.setUint32(40,n*2,true);
+const a=new Audio(URL.createObjectURL(new Blob([bf],{type:"audio/wav"})));a.loop=true;a.volume=.01;window.__sil=a;a.play().catch(()=>{})}
+function parseMid(ab){const d=new DataView(ab),u=new Uint8Array(ab);let p=0;const str=n=>{let s="";for(let i=0;i<n;i++)s+=String.fromCharCode(u[p++]);return s};
+if(str(4)!=="MThd")throw Error("MIDI inválido");p+=4;p+=2;const nt=d.getUint16(p);p+=2;const div=d.getUint16(p);p+=2;
+const vl=()=>{let v=0,c;do{c=u[p++];v=(v<<7)|(c&127)}while(c&128);return v};const tempos=[{t:0,us:500000}],ev=[];
+for(let k=0;k<nt;k++){if(str(4)!=="MTrk")throw Error("MIDI inválido");const len=d.getUint32(p);p+=4;const end=p+len;let t=0,rs=0;
+while(p<end){t+=vl();let s=u[p];if(s<128)s=rs;else p++;
+if(s===255){const ty=u[p++],l=vl();if(ty===0x51)tempos.push({t,us:(u[p]<<16)|(u[p+1]<<8)|u[p+2]});p+=l}
+else if(s===240||s===247){p+=vl()}
+else{rs=s;const c=s&15,kd=s&240;if(kd===0xC0){ev.push({t,k:"p",c,v:u[p++]})}else if(kd===0xD0){p++}else{const a=u[p++],b=u[p++];if(kd===0x90&&b>0)ev.push({t,k:"on",c,n:a,v:b});else if(kd===0x80||kd===0x90)ev.push({t,k:"off",c,n:a})}}}
+p=end}
+tempos.sort((a,b)=>a.t-b.t);const sec=t=>{let s=0,lt=0,us=500000;for(const m of tempos){if(m.t>=t)break;s+=(m.t-lt)*us/div/1e6;lt=m.t;us=m.us}return s+(t-lt)*us/div/1e6};
+const ord={p:0,off:1,on:2};ev.sort((a,b)=>a.t-b.t||ord[a.k]-ord[b.k]);const prog={},open={},notes=[];let dur=0;
+for(const e of ev){if(e.k==="p")prog[e.c]=e.v;else if(e.k==="on"){(open[e.c*128+e.n]=open[e.c*128+e.n]||[]).push({s:e.t,v:e.v,p:prog[e.c]||0})}
+else{const l=open[e.c*128+e.n];if(l&&l.length){const o=l.shift();notes.push({c:e.c,n:e.n,v:o.v,p:o.p,s:sec(o.s),e:sec(e.t)})}}}
+for(const k in open)for(const o of open[k]){const c=Math.floor(k/128),n=k%128;notes.push({c,n,v:o.v,p:o.p,s:sec(o.s),e:sec(o.s)+.5})}
+for(const n of notes)if(n.e>dur)dur=n.e;return{notes,dur}}
+function mkSynth(box,url){box.innerHTML=`<div class="ap"><button class="apb" type="button">▶</button><span class="apt">0:00</span><input class="apr" type="range" min="0" max="1000" value="0" disabled><a class="apd" href="${esc(url)}" download title="Baixar MIDI">⬇</a></div>`;
+const b=box.querySelector(".apb"),t=box.querySelector(".apt"),r=box.querySelector(".apr");let ctx=null,master=null,noise=null,notes=null,dur=0,t0=0,off=0,playing=false,sched=false,tick=null,drag=false;
+const f=s=>{s=Math.max(0,Math.round(s||0));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")};
+const cur=()=>ctx?Math.max(0,Math.min(dur,off+(ctx.currentTime-t0))):0;
+const kill=()=>{if(master){try{master.disconnect()}catch(e){}master=null}sched=false};
+const end=()=>{kill();playing=false;off=0;clearInterval(tick);b.textContent="▶";r.value=0;t.textContent="0:00 / "+f(dur);if(window.__sil)window.__sil.pause()};
+const upd=()=>{if(!notes)return;const c=cur();t.textContent=f(c)+" / "+f(dur);if(!drag)r.value=dur?Math.round(c/dur*1000):0;if(playing&&c>=dur-.05)end()};
+const voice=(n,T0,o)=>{const st=T0+Math.max(0,n.s-o),en=T0+Math.max(n.e-o,.06),vel=n.v/127;
+if(n.c===9){if(!noise){noise=ctx.createBuffer(1,Math.round(ctx.sampleRate*.25),ctx.sampleRate);const dd=noise.getChannelData(0);for(let i=0;i<dd.length;i++)dd[i]=Math.random()*2-1}
+const s=ctx.createBufferSource(),g=ctx.createGain(),h=ctx.createBiquadFilter();s.buffer=noise;h.type="highpass";h.frequency.value=n.n==36||n.n==35?120:1800;g.gain.setValueAtTime(.35*vel,st);g.gain.exponentialRampToValueAtTime(.001,st+.18);s.connect(h);h.connect(g);g.connect(master);s.start(st);return}
+const osc=ctx.createOscillator(),g=ctx.createGain(),fl=ctx.createBiquadFilter(),brass=n.p>=56&&n.p<=63,bass=n.p>=32&&n.p<=39;
+osc.type=brass||bass?"sawtooth":"triangle";osc.frequency.value=440*Math.pow(2,(n.n-69)/12);fl.type="lowpass";fl.frequency.value=brass?2200:bass?700:3000;
+const pk=.2*vel+.04;g.gain.setValueAtTime(0,st);g.gain.linearRampToValueAtTime(pk,st+.04);g.gain.setValueAtTime(pk*.85,Math.max(st+.05,en-.02));g.gain.linearRampToValueAtTime(0,en+.12);
+osc.connect(fl);fl.connect(g);g.connect(master);osc.start(st);osc.stop(en+.15)};
+const play=o=>{kill();master=ctx.createGain();master.gain.value=.8;const cp=ctx.createDynamicsCompressor();master.connect(cp);cp.connect(ctx.destination);const T0=ctx.currentTime+.08;t0=T0;off=o;for(const n of notes)if(n.e>o)voice(n,T0,o);sched=true};
+r.oninput=()=>{drag=true;t.textContent=f(r.value/1000*dur)+" / "+f(dur)};
+r.onchange=()=>{const o=r.value/1000*dur;drag=false;kill();off=o;if(ctx)t0=ctx.currentTime;if(playing)play(o);else t.textContent=f(o)+" / "+f(dur)};
+b.onclick=async()=>{unlockIOS();if(!ctx)ctx=new(window.AudioContext||window.webkitAudioContext)();const rp=ctx.resume();
+if(!notes){b.textContent="…";t.textContent="Carregando…";try{const ab=await(await fetch(url)).arrayBuffer();({notes,dur}=parseMid(ab));r.disabled=false}catch(e){b.textContent="▶";t.textContent="0:00";return toast("Erro ao carregar o MIDI",1)}}
+try{await rp}catch(e){}
+if(playing){ctx.suspend();playing=false;clearInterval(tick);b.textContent="▶";if(window.__sil)window.__sil.pause();return}
+if(ctx.state!=="running")await ctx.resume();if(!sched)play(off);playing=true;b.textContent="⏸";clearInterval(tick);tick=setInterval(upd,250)}}
+let PV=null;
+async function openPdf(id){const m=S.partituras.find(x=>x.id==id);if(!m||!FL||PV)return;
+const ov=document.createElement("div");ov.id="pdfv";
+ov.innerHTML=`<div class="pvh"><b>🎼 ${esc(m.name||m.title||"Partitura")}</b><span class="row" style="flex-wrap:nowrap"><button class="b2" id="pvm">－</button><button class="b2" id="pvp">＋</button><button class="b" id="pvx">✕</button></span></div><div class="pvs" id="pvs"><p class="m" style="padding:40px 0">Carregando partitura…</p></div><div id="pvblk">🔒 Conteúdo protegido</div>`;
+document.body.append(ov);document.body.style.overflow="hidden";
+let zoom=1,doc=null,busy=false,again=false,blk=0;const blkEl=document.getElementById("pvblk");
+const blank=ms=>{blkEl.style.display="flex";clearTimeout(blk);if(ms)blk=setTimeout(unb,ms)},unb=()=>{if(!document.hidden)blkEl.style.display="none"};
+const onv=()=>document.hidden?blank():unb(),onb=()=>blank(),onf=()=>unb(),onp=()=>blank(2500);
+const onk=e=>{const k=(e.key||"").toLowerCase(),c=e.ctrlKey||e.metaKey;if(k==="printscreen"||(c&&(k==="p"||k==="s"))||(e.metaKey&&e.shiftKey&&["3","4","5","s"].includes(k))||(e.ctrlKey&&e.shiftKey&&k==="s")){e.preventDefault();try{navigator.clipboard.writeText(" ")}catch(x){}blank(2000)}};
+const nope=e=>e.preventDefault();
+document.addEventListener("visibilitychange",onv);window.addEventListener("blur",onb);window.addEventListener("focus",onf);window.addEventListener("pagehide",onb);window.addEventListener("beforeprint",onp);document.addEventListener("keydown",onk);document.addEventListener("keyup",onk);ov.addEventListener("contextmenu",nope);ov.addEventListener("dragstart",nope);
+const close=()=>{document.removeEventListener("visibilitychange",onv);window.removeEventListener("blur",onb);window.removeEventListener("focus",onf);window.removeEventListener("pagehide",onb);window.removeEventListener("beforeprint",onp);document.removeEventListener("keydown",onk);document.removeEventListener("keyup",onk);clearTimeout(blk);ov.remove();document.body.style.overflow="";PV=null};PV=close;
+document.getElementById("pvx").onclick=close;
+const paint=async()=>{if(busy){again=true;return}busy=true;const box=document.getElementById("pvs");
+try{const wrap=document.createElement("div");wrap.className="pvw";const dpr=Math.min(window.devicePixelRatio||1,2),avail=Math.max(280,Math.min(box.clientWidth-16,900))*zoom,wm=((me||"")+" · "+((PROF&&PROF.email)||"")).trim()||"Banda CCF";
+for(let i=1;i<=doc.numPages;i++){const pg=await doc.getPage(i),b0=pg.getViewport({scale:1});let sc=avail/b0.width*dpr;if(b0.width*b0.height*sc*sc>9e6)sc=Math.sqrt(9e6/(b0.width*b0.height));
+const vp=pg.getViewport({scale:sc}),cv=document.createElement("canvas");cv.width=Math.round(vp.width);cv.height=Math.round(vp.height);cv.style.width=Math.round(avail)+"px";cv.style.height="auto";
+const x=cv.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,cv.width,cv.height);await pg.render({canvasContext:x,viewport:vp}).promise;
+x.save();x.globalAlpha=.14;x.fillStyle="#000";x.font=Math.round(cv.width/36)+"px sans-serif";x.textAlign="center";x.rotate(-Math.PI/6);const gx=cv.width/1.5,gy=cv.width/4.5;let row=0;
+for(let yy=0;yy<cv.width*.5+cv.height*.87;yy+=gy,row++)for(let xx=-cv.height*.5+(row%2?gx/2:0);xx<cv.width;xx+=gx)x.fillText(wm,xx,yy);x.restore();wrap.append(cv)}
+box.innerHTML="";box.append(wrap)}catch(e){box.innerHTML='<p class="m" style="padding:40px 0">Não foi possível abrir a partitura.</p>'}
+busy=false;if(again){again=false;paint()}};
+document.getElementById("pvm").onclick=()=>{zoom=Math.max(.6,zoom-.4);paint()};document.getElementById("pvp").onclick=()=>{zoom=Math.min(3,zoom+.4);paint()};
+try{const u=await FL.url(m.file,120),r=await fetch(u);if(!r.ok)throw Error("erro "+r.status);const buf=await r.arrayBuffer(),L=await pdfjs();doc=await L.getDocument({data:buf}).promise;await paint()}
+catch(e){const bx=document.getElementById("pvs");if(bx)bx.innerHTML='<p class="m" style="padding:40px 0">Não foi possível abrir a partitura. '+esc(e.message||"")+'</p>'}}
 function shrink(f,max,q,url){return new Promise((ok,no)=>{const i=new Image(),u=URL.createObjectURL(f);i.onload=()=>{const r=Math.min(1,max/Math.max(i.width,i.height)),c=document.createElement("canvas");c.width=i.width*r;c.height=i.height*r;c.getContext("2d").drawImage(i,0,0,c.width,c.height);URL.revokeObjectURL(u);if(url)ok(c.toDataURL("image/jpeg",q));else c.toBlob(b=>b?ok(b):no(Error("Falha ao processar a imagem")),"image/jpeg",q)};i.onerror=()=>no(Error("Imagem não suportada"));i.src=u})}
 async function up(f){const vid=f.type.startsWith("video");const blob=vid?f:await shrink(f,1600,.82);
 try{const A=await claude.use("assets");if(!A)throw Error("Envio de arquivos indisponível (é preciso ser Editor)");const r=await A.upload(blob);return{file:r.url,kind:vid?"video":"img"}}catch(e){if(vid)throw e;return{file:await shrink(f,900,.6,1),kind:"img"}}}
@@ -168,6 +253,7 @@ edit(c,id){const o=S[c].find(x=>x.id==id);openForm("Editar",C[c],o,async v=>{del
 async del(c,id){if(!confirm("Excluir definitivamente?"))return;if(c=="partituras"){const o=S.partituras.find(x=>x.id==id);try{if(o&&o.file)await FL.remove(o.file);if(o&&o.cover)await FL.remove(o.cover)}catch(e){}}try{await db.doc(c+"/"+id).delete();await log("Excluiu "+c+": "+id);await H.reload();toast("Excluído")}catch(e){toast("Erro: "+e.message,1)}},
 async delq(u,id){if(!confirm("Excluir esta pergunta definitivamente?"))return;try{await db.doc(`inbox/${u}/items/${id}`).delete();try{await db.doc(`answers/${u}/items/${id}`).delete()}catch(e){}await log("Excluiu pergunta "+id);await H.reload();toast("Pergunta excluída")}catch(e){toast("Erro: "+(e.message||e.code),1)}},
 async rsvp(id){try{const p=`presenca/${id}/${uid}`,l=PR[id]||(PR[id]=[]),i=l.findIndex(x=>x.id==uid);if(i>=0){await db.doc(p).delete();l.splice(i,1);toast("Presença cancelada")}else{const d={name:me,ts:Date.now()};await db.doc(p).set(d);l.push({id:uid,...d});toast("Presença confirmada!")}render()}catch(e){toast("Erro: "+(e.message||e.code),1)}},
+async setcode(){const v=prompt("Novo código da banda (mínimo 6 caracteres):",CODE||"");if(v===null)return;try{await RR.setCode(v.trim());await log("Alterou o código da banda");await H.reload();toast("Código atualizado")}catch(e){toast("Erro: "+(e.message||e.code),1)}},
 async deluser(u){const x=USERS.find(y=>y.uid==u);if(!x)return;if(!confirm("Remover "+(x.name||x.email)+"?\n\nA conta e as perguntas, inscrições e presenças dessa pessoa serão apagadas. Isso não pode ser desfeito. Ela poderá entrar de novo criando uma conta nova."))return;
 try{await RR.remove(u);await log("Removeu o usuário "+(x.name||x.email));await H.reload();toast("Usuário removido")}catch(e){toast("Erro: "+(e.message||e.code),1)}},
 async setrole(u,r){try{await RR.set(u,r);await log("Alterou função de "+u+" para "+r);await H.reload();toast("Função atualizada")}catch(e){toast("Erro: "+(e.message||e.code),1);render()}},
@@ -181,7 +267,7 @@ if(/\.midi?$/i.test(a.file)){box.innerHTML='<p class="m">Carregando o player MID
 else box.innerHTML='<audio controls autoplay preload="auto" style="width:100%" src="'+esc(u)+'"></audio>'}catch(e){box.innerHTML='<button class="b2" data-a="play|'+id+'">▶ Ouvir</button>';toast("Erro: "+(e.message||e.code),1)}},
 async delalb(aid){if(!confirm("Excluir o álbum e todos os PDFs dentro dele?"))return;try{for(const p of pdfsOf(aid)){for(const f of[p.file,p.cover])if(f)try{await FL.remove(f)}catch(e){}await db.doc("partituras/"+p.id).delete()}await db.doc("albuns/"+aid).delete();await log("Excluiu álbum "+aid);await H.reload();toast("Álbum excluído")}catch(e){toast("Erro: "+(e.message||e.code),1)}},
 alb(id){alb=id;render();scrollTo(0,0)},back(){alb=null;render()},
-async pdf(id){const m=S.partituras.find(x=>x.id==id);const w=window.open("","_blank");try{const u=await FL.url(m.file);if(w)w.location.href=u;else location.href=u}catch(e){if(w)w.close();toast("Erro ao abrir: "+(e.message||e.code),1)}},
+pdf(id){openPdf(id)},
 async cancel(id){const o={...S.events.find(x=>x.id==id),status:"cancelado"};delete o.id;await db.doc("events/"+id).set(o);await log("Cancelou evento "+id);await H.reload()},
 sec(k){openForm(SEC[k][0],SEC[k][1],S.site[k]||{},async v=>{S.site[k]=v;await db.doc("site/main").set(S.site);await log("Editou página "+k);render()})},
 join(){send("inscricao","Quero entrar na banda",[["name","Nome","text",0,1],["age","Idade ou faixa etária","text"],["grade","Turma ou série","text"],["instr","Instrumento de interesse","text",0,1],["exp","Experiência musical (opcional)","text"],["msg","Mensagem para a administração","area"],["contact","Contato (se necessário)","text"]])},
@@ -193,7 +279,7 @@ claude.use("downloads").then(D=>D?D.save({filename:"evento.ics",data:s}):toast("
 function send(type,title,fs){if(!uid)return openLogin();openForm(title,fs,{},async v=>{const id=Date.now().toString(36);await db.doc(`inbox/${uid}`).set({name:me,ts:Date.now()});await db.doc(`inbox/${uid}/items/${id}`).set({...v,type,ts:Date.now(),from:me});await H.reload()})}
 document.addEventListener("click",e=>{const t=e.target.closest("[data-a]");if(!t)return;const[a,...p]=t.dataset.a.split("|");H[a]?.(...p)});
 addEventListener("hashchange",()=>{pg=location.hash.slice(1)||"inicio";render()});
-(async()=>{try{for(let i=0;i<40&&typeof claude==="undefined";i++)await new Promise(r=>setTimeout(r,100));const HC=typeof claude!=="undefined";db=HC?await claude.use("db"):null;const u=HC?await claude.use("user"):null;RR=HC?await claude.use("roles"):null;FL=HC?await claude.use("files"):null;AU=HC?await claude.use("audios"):null;DBG={v:"deluser1",claude:HC,db:!!db,user:!!u,files:!!FL,audios:!!AU};
+(async()=>{try{for(let i=0;i<40&&typeof claude==="undefined";i++)await new Promise(r=>setTimeout(r,100));const HC=typeof claude!=="undefined";db=HC?await claude.use("db"):null;const u=HC?await claude.use("user"):null;RR=HC?await claude.use("roles"):null;FL=HC?await claude.use("files"):null;AU=HC?await claude.use("audios"):null;DBG={v:"codigo1",claude:HC,db:!!db,user:!!u,files:!!FL,audios:!!AU};
 const gate=()=>{$("#nav").innerHTML="";$("#v").innerHTML=`<div class="hero" style="padding-top:8vh"><img class="logo" src="${LOGO}" alt="Logo da Banda Marcial CCF"><div class="card" style="margin-top:28px"><h3>Entrar</h3><p class="m">É obrigatório entrar com sua conta para acessar o aplicativo. Você poderá escolher Google, e-mail ou outra opção.</p><button class="b" style="width:100%" onclick="location.reload()">Entrar</button></div></div>`};if(!db){render();return}
 if(u){uid=await u.id();ROLE=await u.role();try{const m=await u.me();me=m.name||"Usuário";mail=""}catch(e){}try{adm_=(await u.isOwner())||(await u.canEdit());DBG.owner=await u.isOwner();DBG.editor=await u.canEdit()}catch(e){DBG.err=e.message}admin=!!adm_}
 if(u){const p0=u.profile?await u.profile():null;PROF=p0||{};if(p0&&!p0.answered&&["visitante","integrante"].includes(p0.role)){await quiz(u,p0);PROF=await u.profile();ROLE=await u.role();try{me=(await u.me()).name||me}catch(e){}}}

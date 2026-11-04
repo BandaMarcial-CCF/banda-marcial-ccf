@@ -6,7 +6,7 @@ const sb=supabase.createClient(C.url,C.key,{auth:{flowType:"pkce",persistSession
 let session=null,role="visitante",profile={};
 const OWNER=String(C.admin).toLowerCase();
 async function loadRole(){role="visitante";profile={};if(!session)return;const u=session.user,own=(u.email||"").toLowerCase()===OWNER,meta=u.user_metadata?.full_name||"";if(own)role="dono";
- const mkOwner=async()=>{await sb.from("roles").update({role:"dono"}).eq("uid",u.id);await sb.from("staff").upsert({uid:u.id,role:"dono"})};
+ const mkOwner=async()=>{const r=await sb.rpc("admin_set_role",{target:u.id,new_role:"dono"});if(r.error)throw r.error};
  try{const{data}=await sb.from("roles").select("role,name,instrument,answered").eq("uid",u.id).maybeSingle();
   if(data){profile=data;if(!own)role=data.role;else if(data.role!=="dono"){await mkOwner()}}
   else{await sb.from("roles").insert({uid:u.id,email:u.email,name:meta,role:"visitante"});profile={name:meta,instrument:null,answered:false};if(own)await mkOwner()}
@@ -26,19 +26,23 @@ const email=()=>(session?.user?.email||"").toLowerCase();
 const user={id:async()=>session?.user?.id||null,
  me:async()=>({name:profile.name||session?.user?.user_metadata?.full_name||email().split("@")[0]||"Usuário"}),
  canEdit:()=>role==="dono"||role==="maestro",isOwner:()=>email()===OWNER,role:async()=>role,profile:async()=>profile,
- saveQuiz:async({name,member,instrument})=>{const patch={name,answered:true,instrument:member?instrument:null};if(member&&role==="visitante")patch.role="integrante";
-  const{data,error}=await sb.from("roles").update(patch).eq("uid",session.user.id).select();if(error)throw error;if(!data||!data.length)throw Error("Não foi possível salvar suas respostas");
-  if(patch.role)role="integrante";profile={...profile,...patch,role}}};
+ checkCode:async c=>{const{data,error}=await sb.rpc("check_member_code",{p_code:c});if(error)throw error;return !!data},
+ saveQuiz:async({name,member,instrument,code})=>{
+  if(member){const{data:ok,error}=await sb.rpc("claim_member",{p_code:code,p_name:name,p_instrument:instrument});if(error)throw error;if(!ok)throw Error("Código incorreto");
+   if(role==="visitante")role="integrante";profile={...profile,name,instrument,answered:true,role};return}
+  const patch={name,answered:true,instrument:null};const{data,error}=await sb.from("roles").update(patch).eq("uid",session.user.id).select();if(error)throw error;if(!data||!data.length)throw Error("Não foi possível salvar suas respostas");
+  profile={...profile,...patch,role}}};
 const assets={upload:async f=>{const ext=(f.name.split(".").pop()||"bin").toLowerCase(),name=rid()+"."+ext;
  const{error}=await sb.storage.from("galeria").upload(name,f,{contentType:f.type});if(error)throw error;
  return{url:sb.storage.from("galeria").getPublicUrl(name).data.publicUrl}}};
 const downloads={save:async({filename,data})=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([data]));a.download=filename;a.click()}};
 const rolesApi={list:async()=>{const{data,error}=await sb.from("roles").select("uid,email,name,role,created_at,instrument,answered").order("created_at",{ascending:false});if(error)throw error;return data},
  remove:async uid=>{const{error}=await sb.rpc("admin_delete_user",{target:uid});if(error)throw error},
- set:async(uid,rl)=>{const{data,error}=await sb.from("roles").update({role:rl}).eq("uid",uid).select();if(error)throw error;if(!data.length)throw Error("Sem permissão para alterar esta função");
-  if(email()===OWNER){if(rl==="dono"||rl==="maestro"){const r=await sb.from("staff").upsert({uid,role:rl});if(r.error)throw r.error}else{await sb.from("staff").delete().eq("uid",uid)}}}};
+ set:async(uid,rl)=>{const{error}=await sb.rpc("admin_set_role",{target:uid,new_role:rl});if(error)throw error},
+ getCode:async()=>{const{data,error}=await sb.rpc("admin_get_member_code");if(error)throw error;return data||""},
+ setCode:async c=>{const{error}=await sb.rpc("admin_set_member_code",{new_code:c});if(error)throw error}};
 const mkFiles=B=>({upload:async(f,name,type)=>{const{error}=await sb.storage.from(B).upload(name,f,{contentType:type,upsert:false});if(error)throw error;return name},
- url:async p=>{const{data,error}=await sb.storage.from(B).createSignedUrl(p,3600);if(error)throw error;return data.signedUrl},
+ url:async(p,ttl)=>{const{data,error}=await sb.storage.from(B).createSignedUrl(p,ttl||3600);if(error)throw error;return data.signedUrl},
  urls:async ps=>{const{data,error}=await sb.storage.from(B).createSignedUrls(ps,3600);if(error)throw error;return data},
  remove:async p=>{const{error}=await sb.storage.from(B).remove([p]);if(error)throw error}});
 const filesApi=mkFiles("partituras"),audioApi=mkFiles("audios");
