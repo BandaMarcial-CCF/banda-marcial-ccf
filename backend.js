@@ -11,7 +11,7 @@ async function loadRole(){role="visitante";profile={};if(!session)return;const u
   if(data){profile=data;if(!own)role=data.role;else if(data.role!=="dono"){await mkOwner()}}
   else{await sb.from("roles").insert({uid:u.id,email:u.email,name:meta,role:"visitante"});profile={name:meta,instrument:null,answered:false};if(own)await mkOwner()}
  }catch(e){}
- profile.role=role}
+ profile.role=role;profile.email=session?.user?.email||""}
 const ready=sb.auth.getSession().then(async r=>{session=r.data.session;await loadRole()});
 sb.auth.onAuthStateChange((_e,s)=>{session=s});
 const parentOf=p=>p.replace(/\/[^/]+$/,""),rid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
